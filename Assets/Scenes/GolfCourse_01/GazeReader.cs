@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
-using UnityEngine.Android
+using UnityEngine.Android;
 
 public class GazeReader : MonoBehaviour
 {
