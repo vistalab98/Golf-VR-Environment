@@ -35,6 +35,8 @@ public class GolfPhysics : MonoBehaviour
                 strikeDirection.y += liftAmount;
                 strikeDirection = strikeDirection.normalized;
 
+                Debug.Log($"Strike with vector: {clubVelocity}");
+
                 float swingSpeed = clubVelocity.magnitude;
                 float launchForce = swingSpeed * powerMultiplier;
 
