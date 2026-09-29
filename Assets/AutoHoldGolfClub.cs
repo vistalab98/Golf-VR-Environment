@@ -1,52 +1,86 @@
+using System.Collections;
+using Unity.XR.CoreUtils;
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
-using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
-public class AutoHoldVR : MonoBehaviour
+[RequireComponent(typeof(XRGrabInteractable))]
+public class AutoHoldGolfClub : MonoBehaviour
 {
-    [Header("Setup")]
-    public XRDirectInteractor handInteractor; 
+    public XRDirectInteractor handInteractor;
 
-    [Header("Manual Grip Calibration")]
-    [Tooltip("Move the club forward/backward/left/right relative to the controller's center")]
+    public string handNameContains = "Right";
+
+
+    public Transform gripPoint;
+
     public Vector3 localPositionOffset = new Vector3(0f, -0.1f, 0.2f);
-    
-    [Tooltip("Tilt the club angles here. Set X to around 45 to angle it like a golf club!")]
+
     public Vector3 localRotationOffset = new Vector3(45f, 0f, 0f);
 
-    private bool isAttached = false;
-    private Transform handTransform;
+    XRGrabInteractable grab;
 
-    void Start()
+    void Awake()
+    {
+        grab = GetComponent<XRGrabInteractable>();
+        grab.useDynamicAttach = false;
+    }
+
+    IEnumerator Start()
+    {
+        yield return null;
+
+        if (handInteractor == null)
+            handInteractor = FindHand();
+
+        if (handInteractor == null)
+        {
+            Debug.LogWarning($"AutoHoldGolfClub: no XR Direct Interactor containing '{handNameContains}' found under the XR Origin.", this);
+            yield break;
+        }
+
+        if (gripPoint != null)
+            grab.attachTransform = gripPoint;
+        else
+            CreateGripPoint();
+
+        handInteractor.StartManualInteraction((IXRSelectInteractable)grab);
+    }
+
+    public void Drop()
     {
         if (handInteractor != null)
-        {
-            XRGrabInteractable grabInteractable = GetComponent<XRGrabInteractable>();
-            
-            if (grabInteractable != null)
-            {
-                // Forcing the grab
-                handInteractor.interactionManager.SelectEnter(
-                    (IXRSelectInteractor)handInteractor, 
-                    (IXRSelectInteractable)grabInteractable
-                );
+            handInteractor.EndManualInteraction();
+    }
 
-                // locking to hand's transform reference
-                handTransform = handInteractor.transform;
-                isAttached = true;
+    void CreateGripPoint()
+    {
+        Transform handAttach = handInteractor.GetAttachTransform(grab);
+
+        transform.SetPositionAndRotation(
+            handAttach.TransformPoint(localPositionOffset),
+            handAttach.rotation * Quaternion.Euler(localRotationOffset));
+
+        gripPoint = new GameObject("GripPoint").transform;
+        gripPoint.SetParent(transform, false);
+        gripPoint.SetPositionAndRotation(handAttach.position, handAttach.rotation);
+
+        grab.attachTransform = gripPoint;
+    }
+
+    XRDirectInteractor FindHand()
+    {
+        var origin = FindAnyObjectByType<XROrigin>();
+        if (origin == null) return null;
+
+        foreach (var hand in origin.GetComponentsInChildren<XRDirectInteractor>(true))
+        {
+            for (Transform t = hand.transform; t != null; t = t.parent)
+            {
+                if (t.name.Contains(handNameContains))
+                    return hand;
             }
         }
-    }
-    void LateUpdate()
-    {
-        if (isAttached && handTransform != null)
-        {
-            // Force position to stay to the hand
-            transform.position = handTransform.TransformPoint(localPositionOffset);
-
-            // Force rotation angle to stay to the hand
-            transform.rotation = handTransform.rotation * Quaternion.Euler(localRotationOffset);
-        }
+        return null;
     }
 }
