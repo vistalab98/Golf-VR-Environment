@@ -8,7 +8,7 @@ public class GolfPhysics : MonoBehaviour
 
     private Vector3 previousPosition;
     public Vector3 clubVelocity;
-    [HideInInspector] public Vector3 clubStrikeVelocity = Vector3.zero;
+    public Vector3 clubStrikeVelocity = Vector3.zero;
 
     void Start()
     {
@@ -38,7 +38,9 @@ public class GolfPhysics : MonoBehaviour
 
                 if (clubStrikeVelocity == Vector3.zero) {
                     Debug.Log($"Strike with vector: {clubVelocity}");
-                    clubStrikeVelocity = clubVelocity;
+                    clubStrikeVelocity.x = clubVelocity.x;
+                    clubStrikeVelocity.y = clubVelocity.y;
+                    clubStrikeVelocity.z = clubVelocity.z;
                 }
 
                 float swingSpeed = clubVelocity.magnitude;
