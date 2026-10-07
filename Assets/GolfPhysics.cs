@@ -36,7 +36,7 @@ public class GolfPhysics : MonoBehaviour
                 strikeDirection.y += liftAmount;
                 strikeDirection = strikeDirection.normalized;
 
-                if (clubStrikeVelocity == Vector3.zero) {
+                if (clubStrikeVelocity.x == 0 && clubStrikeVelocity.y == 0 && clubStrikeVelocity.z == 0) {
                     Debug.Log($"Strike with vector: {clubVelocity}");
                     clubStrikeVelocity.x = clubVelocity.x;
                     clubStrikeVelocity.y = clubVelocity.y;
