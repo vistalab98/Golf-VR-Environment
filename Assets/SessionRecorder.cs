@@ -15,6 +15,7 @@ public class SessionRecorder : MonoBehaviour
 {
     [Header("References")]
     public PlayerTracker tracker;
+    public GolfPhysics physics;
 
     [Header("Controls")]
     public Key saveKey = Key.R;
@@ -65,6 +66,12 @@ public class SessionRecorder : MonoBehaviour
 
         if (tracker == null)
             Debug.LogWarning("SessionRecorder: no PlayerTracker found in the scene.", this);
+
+        if (gPhysics == null)
+            gPhysics = FindAnyObjectByType<GolfPhysics>();
+
+        if (tracker == null)
+            Debug.LogWarning("SessionRecorder: no GolfPhysics found in the scene.", this);
 
         StartNewSession();
     }
@@ -132,7 +139,7 @@ public class SessionRecorder : MonoBehaviour
         {
             File.WriteAllText(summaryPath,
                 "session,date,file,duration_s,samples,discards_before_success,total_discards_so_far," +
-                "head_peak_speed,left_peak_speed,right_peak_speed" + Environment.NewLine);
+                "head_peak_speed,left_peak_speed,right_peak_speed,strike_vector" + Environment.NewLine);
         }
         File.AppendAllText(summaryPath, string.Join(",",
             sessionNumber,
@@ -144,7 +151,8 @@ public class SessionRecorder : MonoBehaviour
             totalDiscards,
             F(tracker.Head?.PeakSpeed ?? 0f),
             F(tracker.LeftHand?.PeakSpeed ?? 0f),
-            F(tracker.RightHand?.PeakSpeed ?? 0f)) + Environment.NewLine);
+            F(tracker.RightHand?.PeakSpeed ?? 0f)),
+            string.Join(" ","[",gPhysics.clubStrikeVelocity._vel_x,gPhysics.clubStrikeVelocity._vel_y,gPhysics.clubStrikeVelocity._vel_z,"]") + Environment.NewLine);
 
         PlayerPrefs.SetInt(TotalSavesKey, sessionNumber);
         PlayerPrefs.Save();

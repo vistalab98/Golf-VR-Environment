@@ -7,7 +7,8 @@ public class GolfPhysics : MonoBehaviour
     public float liftAmount = 0.3f;      
 
     private Vector3 previousPosition;
-    private Vector3 clubVelocity;
+    public Vector3 clubVelocity;
+    [HideInInspector] public Vector3 clubStrikeVelocity = Vector3.zero;
 
     void Start()
     {
@@ -35,7 +36,10 @@ public class GolfPhysics : MonoBehaviour
                 strikeDirection.y += liftAmount;
                 strikeDirection = strikeDirection.normalized;
 
-                Debug.Log($"Strike with vector: {clubVelocity}");
+                if (clubStrikeVelocity == Vector3.zero) {
+                    Debug.Log($"Strike with vector: {clubVelocity}");
+                    clubStrikeVelocity = clubVelocity;
+                }
 
                 float swingSpeed = clubVelocity.magnitude;
                 float launchForce = swingSpeed * powerMultiplier;
