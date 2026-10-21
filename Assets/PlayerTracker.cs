@@ -2,8 +2,7 @@ using System.Collections.Generic;
 using Unity.XR.CoreUtils;
 using UnityEngine;
 
-/// Tracks the player's head and both hands every frame: position, rotation,
-/// velocity, angular velocity, speed, and a short history of recent samples.
+
 public class PlayerTracker : MonoBehaviour
 {
     [Header("Targets")]

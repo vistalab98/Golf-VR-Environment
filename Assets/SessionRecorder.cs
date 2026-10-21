@@ -1,21 +1,20 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
-///   Records the PlayerTracker's head and hand data during a session.
-///   R = the session was good: save it to a CSV file, then start a new session.
-///   F = the session had a mistake: throw the data away, reset the scene, and count it.
 [DefaultExecutionOrder(100)]
 public class SessionRecorder : MonoBehaviour
 {
     [Header("References")]
+    [Tooltip("Leave empty to find it automatically.")]
     public PlayerTracker tracker;
-    public GolfPhysics gPhysics;
 
     [Header("Controls")]
     public Key saveKey = Key.R;
@@ -26,40 +25,65 @@ public class SessionRecorder : MonoBehaviour
     [Header("Recording")]
     [Tooltip("Samples per second. 0 = record every frame.")]
     public float sampleRate = 60f;
+    [Tooltip("In the Editor this folder is created next to your Assets folder. In a build it goes in Application.persistentDataPath.")]
     public string folderName = "SessionData";
 
     [Header("Display")]
     [Tooltip("Show the counters in the corner of the Game view.")]
     public bool showOnScreenInfo = true;
 
-    // Static values survive scene reloads
+    // ---------- values that survive scene reloads (reset when Play starts) ----------
     static int discardsSinceLastSave;
     static int discardsThisPlay;
     static int savesThisPlay;
+    static int attemptsThisPlay;
+    static string lastSaveMessage = "";
+    static bool lastSaveOk = true;
+
+    static string playBaseName;
+    static readonly Dictionary<string, List<string>> pendingLines = new Dictionary<string, List<string>>();
+    static readonly Dictionary<string, int> expectedLineCounts = new Dictionary<string, int>();
 
     // Stored between Play sessions
     const string TotalDiscardsKey = "SessionRecorder.TotalDiscards";
     const string TotalSavesKey = "SessionRecorder.TotalSaves";
 
+    // ---------- the attempt currently being recorded ----------
     readonly List<string> rows = new List<string>();
+    readonly List<float> rowTimes = new List<float>();
     float startTime;
     float nextSampleTime;
-    bool busy;
+    bool busy = true;
+    bool started;
+    bool attemptOpen;
+
+    public static event Action<string> SessionStarted;
+    public static event Action<string> SessionSaved;
+    public static event Action SessionDiscarded;
 
     public static int DiscardsSinceLastSave => discardsSinceLastSave;
     public static int TotalDiscards => PlayerPrefs.GetInt(TotalDiscardsKey, 0);
     public static int TotalSaves => PlayerPrefs.GetInt(TotalSavesKey, 0);
 
-    // Reset the counters each time Play mode starts
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics()
     {
         discardsSinceLastSave = 0;
         discardsThisPlay = 0;
         savesThisPlay = 0;
+        attemptsThisPlay = 0;
+        lastSaveMessage = "";
+        lastSaveOk = true;
+        playBaseName = null;
+        pendingLines.Clear();
+        expectedLineCounts.Clear();
+        headers.Clear();
+        SessionStarted = null;
+        SessionSaved = null;
+        SessionDiscarded = null;
     }
 
-    void Start()
+    IEnumerator Start()
     {
         if (tracker == null)
             tracker = FindAnyObjectByType<PlayerTracker>();
@@ -67,13 +91,13 @@ public class SessionRecorder : MonoBehaviour
         if (tracker == null)
             Debug.LogWarning("SessionRecorder: no PlayerTracker found in the scene.", this);
 
-        if (gPhysics == null)
-            gPhysics = FindAnyObjectByType<GolfPhysics>();
+        // One combined file (and video) per Play session
+        if (playBaseName == null)
+            playBaseName = "play_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
 
-        if (tracker == null)
-            Debug.LogWarning("SessionRecorder: no GolfPhysics found in the scene.", this);
-
-        StartNewSession();
+        yield return PlayerSpawnPoint.WaitUntilReady();
+        StartNewSession(PlayerSpawnPoint.ReadyTime);
+        started = true;
     }
 
     void Update()
@@ -94,18 +118,24 @@ public class SessionRecorder : MonoBehaviour
         if (sampleRate > 0f)
         {
             if (Time.time < nextSampleTime) return;
-            nextSampleTime = Time.time + 1f / sampleRate;
+            float interval = 1f / sampleRate;
+            while (nextSampleTime <= Time.time)
+                nextSampleTime += interval;
         }
 
+        float videoTime = SessionVideoRecorder.VideoTimeAt(Time.time);
+
         var sb = new StringBuilder();
-        sb.Append(F(Time.time - startTime));
+        sb.Append(videoTime >= 0f ? F(videoTime) : "");
+        sb.Append(',').Append(F(Time.time - startTime));
         AppendPart(sb, tracker.Head);
         AppendPart(sb, tracker.LeftHand);
         AppendPart(sb, tracker.RightHand);
         rows.Add(sb.ToString());
+        rowTimes.Add(Time.time - startTime);
     }
 
-    // R: save
+    // ---------- R: save ----------
 
     public void SaveSession()
     {
@@ -117,86 +147,233 @@ public class SessionRecorder : MonoBehaviour
 
         busy = true;
 
-        string folder = GetFolder();
-        Directory.CreateDirectory(folder);
-
         int sessionNumber = TotalSaves + 1;
-        string stamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-        string fileName = $"session_{sessionNumber:D3}_{stamp}.csv";
-        string filePath = Path.Combine(folder, fileName);
-
-        var sb = new StringBuilder();
-        sb.AppendLine(BuildHeader());
-        foreach (var row in rows)
-            sb.AppendLine(row);
-        File.WriteAllText(filePath, sb.ToString());
-
-        // One summary line per saved session
         float duration = Time.time - startTime;
-        int totalDiscards = TotalDiscards;
-        string summaryPath = Path.Combine(folder, "sessions_summary.csv");
-        if (!File.Exists(summaryPath))
-        {
-            File.WriteAllText(summaryPath,
-                "session,date,file,duration_s,samples,discards_before_success,total_discards_so_far," +
-                "head_peak_speed,left_peak_speed,right_peak_speed,strike_vector_x,strike_vector_y,strike_vector_z" + Environment.NewLine);
-        }
-        File.AppendAllText(summaryPath, string.Join(",",
-            sessionNumber,
-            DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-            fileName,
-            F(duration),
-            rows.Count,
-            discardsSinceLastSave,
-            totalDiscards,
-            F(tracker.Head?.PeakSpeed ?? 0f),
-            F(tracker.LeftHand?.PeakSpeed ?? 0f),
-            F(tracker.RightHand?.PeakSpeed ?? 0f),
-            F(gPhysics.clubStrikeVelocity.x),
-            F(gPhysics.clubStrikeVelocity.y),
-            F(gPhysics.clubStrikeVelocity.z) + Environment.NewLine));
+        var check = CheckSession(duration);
+        bool written = FinishAttempt("saved", sessionNumber, check);
 
         PlayerPrefs.SetInt(TotalSavesKey, sessionNumber);
         PlayerPrefs.Save();
         savesThisPlay++;
 
-        Debug.Log($"SessionRecorder: saved session {sessionNumber} ({rows.Count} samples, {duration:F1} s) " +
-                  $"after {discardsSinceLastSave} discarded attempt(s).\n{filePath}");
+        lastSaveOk = check.ok && written;
+        if (!written)
+            lastSaveMessage = $"Session {sessionNumber} is kept in memory, but the CSV is locked (open in Excel?). " +
+                              "Close it; it will be written on the next R or F.";
+        else
+            lastSaveMessage = check.ok
+                ? $"Saved session {sessionNumber}: {rows.Count} samples, {duration:F1} s. All checks passed."
+                : $"Saved session {sessionNumber}, but CHECK IT: {check.issues}";
+
+        string log = $"SessionRecorder: attempt {attemptsThisPlay} saved as session {sessionNumber} " +
+                     $"({rows.Count} samples, {duration:F1} s) after {discardsSinceLastSave} discarded attempt(s).\n" +
+                     CombinedCsvPath();
+        if (check.ok) Debug.Log(log, this);
+        else Debug.LogWarning(log + $"\nProblems: {check.issues}", this);
 
         discardsSinceLastSave = 0;
+
+        SessionSaved?.Invoke(CombinedCsvPath());
 
         if (reloadSceneAfterSave)
             ReloadScene();
         else
-            StartNewSession();
+            StartNewSession(Time.time);
     }
 
-    // F: discard
+    // ---------- F: discard ----------
 
     public void DiscardSession()
     {
         busy = true;
+
+        var check = CheckSession(Time.time - startTime);
+        bool written = FinishAttempt("discarded", 0, check);
 
         discardsSinceLastSave++;
         discardsThisPlay++;
         PlayerPrefs.SetInt(TotalDiscardsKey, TotalDiscards + 1);
         PlayerPrefs.Save();
 
-        Debug.Log($"SessionRecorder: discarded attempt. {discardsSinceLastSave} since last save, " +
+        if (!written)
+        {
+            lastSaveOk = false;
+            lastSaveMessage = "The CSV is locked (open in Excel?). Close it; the data will be written on the next R or F.";
+        }
+
+        Debug.Log($"SessionRecorder: attempt {attemptsThisPlay} discarded. {discardsSinceLastSave} since last save, " +
                   $"{TotalDiscards} total.");
+
+        SessionDiscarded?.Invoke();
 
         ReloadScene();
     }
 
-    // helpers
+    // ---------- stopping Play mid-attempt ----------
 
-    void StartNewSession()
+    void OnApplicationQuit()
+    {
+        if (attemptOpen && rows.Count > 0)
+            FinishAttempt("unfinished", 0, CheckSession(Time.time - startTime));
+
+        if (!FlushPending())
+        {
+            foreach (var entry in pendingLines.ToList())
+            {
+                string backup = Path.Combine(Path.GetDirectoryName(entry.Key),
+                    Path.GetFileNameWithoutExtension(entry.Key) + $"_backup_{DateTime.Now:HH-mm-ss}.csv");
+                try
+                {
+                    File.WriteAllLines(backup, entry.Value);
+                    Debug.LogWarning($"SessionRecorder: {Path.GetFileName(entry.Key)} was locked, so its last rows " +
+                                     $"were written to {backup}. Paste them onto the end of the original.");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"SessionRecorder: could not write {backup}: {e.Message}");
+                }
+            }
+        }
+    }
+
+    // ---------- writing ----------
+
+    bool FinishAttempt(string result, int sessionNumber, SessionCheck check)
+    {
+        attemptOpen = false;
+        string session = sessionNumber > 0 ? sessionNumber.ToString() : "";
+
+        // Combined frame-by-frame data
+        var lines = new List<string>(rows.Count);
+        string prefix = $"{attemptsThisPlay},{result},{session},";
+        foreach (var row in rows)
+            lines.Add(prefix + row);
+        Queue(CombinedCsvPath(), BuildHeader(), lines);
+
+        return FlushPending();
+    }
+
+    static readonly Dictionary<string, string> headers = new Dictionary<string, string>();
+
+    static void Queue(string path, string header, List<string> lines)
+    {
+        headers[path] = header;
+        if (!pendingLines.TryGetValue(path, out var list))
+            pendingLines[path] = list = new List<string>();
+        list.AddRange(lines);
+    }
+
+    static bool FlushPending()
+    {
+        bool allWritten = true;
+        foreach (var path in pendingLines.Keys.ToList())
+        {
+            var lines = pendingLines[path];
+            if (lines.Count == 0) { pendingLines.Remove(path); continue; }
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+                var sb = new StringBuilder();
+                if (!File.Exists(path))
+                {
+                    sb.AppendLine(headers[path]);
+                    expectedLineCounts[path] = 1;
+                }
+                else if (!expectedLineCounts.ContainsKey(path))
+                {
+                    expectedLineCounts[path] = File.ReadLines(path).Count();
+                }
+
+                foreach (var line in lines)
+                    sb.AppendLine(line);
+                File.AppendAllText(path, sb.ToString());
+                expectedLineCounts[path] += lines.Count;
+
+                // Read it back to confirm every row made it to disk
+                int onDisk = File.ReadLines(path).Count();
+                if (onDisk != expectedLineCounts[path])
+                {
+                    Debug.LogError($"SessionRecorder: {Path.GetFileName(path)} has {onDisk} lines but should have " +
+                                   $"{expectedLineCounts[path]}. Was it edited while recording?");
+                    expectedLineCounts[path] = onDisk;
+                }
+
+                pendingLines.Remove(path);
+            }
+            catch (Exception e)
+            {
+                allWritten = false;
+                Debug.LogError($"SessionRecorder: could not write {Path.GetFileName(path)} ({e.Message}). " +
+                               "The data is kept and will be retried on the next R or F. Close the file in Excel.");
+            }
+        }
+        return allWritten;
+    }
+
+    // ---------- checks ----------
+
+    struct SessionCheck
+    {
+        public bool ok;
+        public string issues;
+        public int expectedSamples;
+        public float largestGap;
+        public string missingParts;
+    }
+
+    // Looks for the problems that would make an attempt's data unusable
+    SessionCheck CheckSession(float duration)
+    {
+        var problems = new List<string>();
+        var result = new SessionCheck();
+
+        // 1. Every tracked part was found
+        var missing = new List<string>();
+        if (tracker == null || tracker.Head?.Target == null) missing.Add("head");
+        if (tracker == null || tracker.LeftHand?.Target == null) missing.Add("left");
+        if (tracker == null || tracker.RightHand?.Target == null) missing.Add("right");
+        result.missingParts = missing.Count == 0 ? "none" : string.Join(" ", missing);
+        if (missing.Count > 0) problems.Add($"not tracked: {result.missingParts}");
+
+        // 2. Enough samples for the attempt's length (frame drops reduce this)
+        float rate = sampleRate > 0f ? sampleRate : 1f / Mathf.Max(Time.smoothDeltaTime, 0.001f);
+        result.expectedSamples = Mathf.FloorToInt(duration * rate) + 1;
+        if (rows.Count < result.expectedSamples * 0.9f)
+            problems.Add($"only {rows.Count} of ~{result.expectedSamples} samples (frame drops?)");
+
+        // 3. No long gaps between samples (a freeze or the headset losing focus)
+        for (int i = 1; i < rowTimes.Count; i++)
+            result.largestGap = Mathf.Max(result.largestGap, rowTimes[i] - rowTimes[i - 1]);
+        if (result.largestGap > 0.1f)
+            problems.Add($"{result.largestGap:F2} s gap with no data");
+
+        // 4. The player actually moved (catches a controller that was asleep the whole time)
+        if (tracker != null)
+        {
+            if (tracker.LeftHand?.Target != null && tracker.LeftHand.PeakSpeed < 0.05f) problems.Add("left hand never moved");
+            if (tracker.RightHand?.Target != null && tracker.RightHand.PeakSpeed < 0.05f) problems.Add("right hand never moved");
+        }
+
+        result.ok = problems.Count == 0;
+        result.issues = result.ok ? "none" : string.Join("; ", problems);
+        return result;
+    }
+
+    // ---------- helpers ----------
+
+    void StartNewSession(float timeZero)
     {
         rows.Clear();
-        startTime = Time.time;
-        nextSampleTime = 0f;
+        rowTimes.Clear();
+        startTime = timeZero;
+        nextSampleTime = timeZero;
         tracker?.ResetPeaks();
+        attemptsThisPlay++;
+        attemptOpen = true;
         busy = false;
+        SessionStarted?.Invoke(Path.Combine(GetFolder(), playBaseName));
     }
 
     void ReloadScene()
@@ -205,14 +382,14 @@ public class SessionRecorder : MonoBehaviour
         if (index < 0)
         {
             Debug.LogError("SessionRecorder: this scene isn't in the build's scene list, so it can't be reloaded. " +
-                           "Add it under File > Build Profiles > Scene List. Starting a new session without reloading.");
-            StartNewSession();
+                           "Add it under File > Build Profiles > Scene List. Starting a new attempt without reloading.");
+            StartNewSession(Time.time);
             return;
         }
         SceneManager.LoadScene(index);
     }
 
-    string GetFolder()
+    public string GetFolder()
     {
 #if UNITY_EDITOR
         return Path.GetFullPath(Path.Combine(Application.dataPath, "..", folderName));
@@ -221,9 +398,11 @@ public class SessionRecorder : MonoBehaviour
 #endif
     }
 
+    string CombinedCsvPath() => Path.Combine(GetFolder(), playBaseName + ".csv");
+
     static string BuildHeader()
     {
-        var columns = new List<string> { "time_s" };
+        var columns = new List<string> { "attempt", "result", "session", "video_time_s", "time_s" };
         foreach (var part in new[] { "head", "left", "right" })
         {
             columns.AddRange(new[]
@@ -255,6 +434,8 @@ public class SessionRecorder : MonoBehaviour
         sb.Append(',').Append(F(part.Speed));
         sb.Append(',').Append(F(part.AngularVelocity.magnitude * Mathf.Rad2Deg));
     }
+
+    // Always use "." for decimals so the CSV opens correctly in any region
     static string F(float value) => value.ToString("0.#####", CultureInfo.InvariantCulture);
 
     [ContextMenu("Reset Saved Counters")]
@@ -263,7 +444,9 @@ public class SessionRecorder : MonoBehaviour
         PlayerPrefs.DeleteKey(TotalDiscardsKey);
         PlayerPrefs.DeleteKey(TotalSavesKey);
         PlayerPrefs.Save();
-        ResetStatics();
+        discardsSinceLastSave = 0;
+        discardsThisPlay = 0;
+        savesThisPlay = 0;
         Debug.Log("SessionRecorder: counters reset. Existing files were not deleted.");
     }
 
@@ -271,14 +454,34 @@ public class SessionRecorder : MonoBehaviour
     {
         if (!showOnScreenInfo) return;
 
+        if (!started)
+        {
+            GUI.Box(new Rect(10, 10, 330, 30), GUIContent.none);
+            GUI.Label(new Rect(18, 14, 320, 25), "Waiting for headset tracking...");
+            return;
+        }
+
+        float videoNow = SessionVideoRecorder.VideoTimeAt(Time.time);
+        string video = videoNow >= 0f
+            ? $"Video: {TimeSpan.FromSeconds(videoNow):mm\\:ss}  ({SessionVideoRecorder.CurrentVideoFile})"
+            : "Video: not recording";
+
         string text =
-            $"Recording: {(Time.time - startTime):F1} s  ({rows.Count} samples)\n" +
+            $"Attempt {attemptsThisPlay}: {(Time.time - startTime):F1} s  ({rows.Count} samples)\n" +
             $"Discards since last save: {discardsSinceLastSave}\n" +
             $"This Play session: {savesThisPlay} saved, {discardsThisPlay} discarded\n" +
-            $"All time: {TotalSaves} saved, {TotalDiscards} discarded\n" +
+            video + "\n" +
             $"{saveKey} = save    {discardKey} = discard & reset";
 
-        GUI.Box(new Rect(10, 10, 330, 95), GUIContent.none);
-        GUI.Label(new Rect(18, 14, 320, 90), text);
+        GUI.Box(new Rect(10, 10, 360, 112), GUIContent.none);
+        GUI.Label(new Rect(18, 14, 350, 106), text);
+
+        if (!string.IsNullOrEmpty(lastSaveMessage))
+        {
+            var style = new GUIStyle(GUI.skin.label) { wordWrap = true };
+            style.normal.textColor = lastSaveOk ? new Color(0.5f, 1f, 0.5f) : new Color(1f, 0.6f, 0.3f);
+            GUI.Box(new Rect(10, 127, 360, 50), GUIContent.none);
+            GUI.Label(new Rect(18, 130, 350, 46), lastSaveMessage, style);
+        }
     }
 }

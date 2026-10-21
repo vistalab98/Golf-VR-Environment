@@ -1155,7 +1155,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 603414266}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 626a4d6723d6ad24b9aebb811ad5a3dd, type: 3}
   m_Name: 
@@ -1198,6 +1198,37 @@ MonoBehaviour:
     m_ObjectReferenceObject: {fileID: 0}
     m_ManualValue: {x: 0, y: 0}
   m_UseGravity: 1
+--- !u!1 &660858705
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 660858706}
+  m_Layer: 0
+  m_Name: PlayerSpawn
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &660858706
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 660858705}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.637, y: 0, z: -0.32}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1206199527}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &696750557
 GameObject:
   m_ObjectHideFlags: 0
@@ -1468,7 +1499,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 822539874}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 75b29b6c6428c984a8a73ffc2d58063b, type: 3}
   m_Name: 
@@ -2260,15 +2291,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d3e4c24de8a12ef4eb1319ecd30c3c9e, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 4
+      value: 3.376
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d3e4c24de8a12ef4eb1319ecd30c3c9e, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.2
+      value: 0.106
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d3e4c24de8a12ef4eb1319ecd30c3c9e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.066
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d3e4c24de8a12ef4eb1319ecd30c3c9e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -2327,6 +2358,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d3e4c24de8a12ef4eb1319ecd30c3c9e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1128186564}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d3e4c24de8a12ef4eb1319ecd30c3c9e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1128186570}
   m_SourcePrefab: {fileID: 100100000, guid: d3e4c24de8a12ef4eb1319ecd30c3c9e, type: 3}
 --- !u!1 &1128186563 stripped
 GameObject:
@@ -2511,6 +2545,20 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.99513847
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1128186570
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1128186563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f74a3a09bb1a8e14cb0474ee68e795a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
+  spawnDelay: 2
+  spawnSound: {fileID: 0}
 --- !u!1 &1206199526
 GameObject:
   m_ObjectHideFlags: 0
@@ -2543,6 +2591,7 @@ Transform:
   - {fileID: 516713279}
   - {fileID: 796843487}
   - {fileID: 972813970}
+  - {fileID: 660858706}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1242220078
@@ -2988,7 +3037,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1452822120}
   - component: {fileID: 1452822122}
-  - component: {fileID: 1452822121}
+  - component: {fileID: 1452822123}
   m_Layer: 0
   m_Name: HoleTrigger
   m_TagString: Untagged
@@ -3006,38 +3055,11 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0.82, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.2, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 796843487}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1452822121
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1452822119}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f87d2d8740b23fa42b7a41aba396ac19, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: '::'
-  ball: {fileID: 1128186565}
-  ballName: Golf_Ball
-  maxSpeed: 1.5
-  settleTime: 0.3
-  message: Nice shot!
-  messageColor: {r: 0.90102684, g: 1, b: 0.19999999, a: 1}
-  fontSize: 1
-  distanceFromHead: 1.5
-  heightOffset: -0.1
-  displaySeconds: 3
-  fadeSeconds: 0.75
-  sound: {fileID: 0}
-  onBallInHole:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!135 &1452822122
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -3059,6 +3081,41 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1452822123
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452822119}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f87d2d8740b23fa42b7a41aba396ac19, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HoleDetector
+  ball: {fileID: 1128186565}
+  ballName: Golf_Ball
+  radius: 0
+  maxHeightAbove: 0.1
+  countInstantly: 1
+  maxSpeed: 1.5
+  settleTime: 0.3
+  debugLogs: 1
+  message: Nice shot!
+  messageColor: {r: 1, g: 0.85, b: 0.2, a: 1}
+  fontSize: 5
+  distanceFromHead: 2
+  heightOffset: 1
+  displaySeconds: 3
+  fadeSeconds: 0.75
+  hideBallWhenScored: 1
+  autoReset: 1
+  resetCountdown: 3
+  countdownText: Resetting in {0}
+  sound: {fileID: 0}
+  onBallInHole:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1001 &1649348735
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3247,7 +3304,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1736107507}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b46d3c2f9f9a9849840e47b9ddef1b2, type: 3}
   m_Name: 
@@ -4077,15 +4134,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: fd383eb57dc224b40b6ee0dc5549b00b, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 5.938
+      value: 3.284
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: fd383eb57dc224b40b6ee0dc5549b00b, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.526
+      value: 0.246
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: fd383eb57dc224b40b6ee0dc5549b00b, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.782
+      value: -0.387
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: fd383eb57dc224b40b6ee0dc5549b00b, type: 3}
       propertyPath: m_LocalRotation.w
@@ -4168,8 +4225,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2560ec8224cce2459c3a6ef7c24c0bb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GolfPhysics
-  powerMultiplier: 2.5
-  liftAmount: 0.3
+  powerMultiplier: 0.5
+  liftAmount: 0.1
   clubVelocity: {x: 0, y: 0, z: 0}
   clubStrikeVelocity: {x: 0, y: 0, z: 0}
 --- !u!114 &1991843141
@@ -4381,6 +4438,8 @@ GameObject:
   - component: {fileID: 2058158933}
   - component: {fileID: 2058158934}
   - component: {fileID: 2058158935}
+  - component: {fileID: 2058158937}
+  - component: {fileID: 2058158936}
   m_Layer: 2
   m_Name: VR Player
   m_TagString: Untagged
@@ -4427,15 +4486,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2058158929}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.7071068, z: -0, w: -0.7071068}
-  m_LocalPosition: {x: 4.096, y: 0, z: -0.476}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.326, y: 0, z: -0.274}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2141870241}
   - {fileID: 4663392}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 270, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &2058158933
 CharacterController:
   m_ObjectHideFlags: 0
@@ -4516,14 +4575,48 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83d0b7c02924ea74ba000f1dd89543f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  tracker: {fileID: 0}
-  gPhysics: {fileID: 0}
+  tracker: {fileID: 2058158934}
   saveKey: 32
   discardKey: 20
   reloadSceneAfterSave: 1
-  sampleRate: 60
+  sampleRate: 0
   folderName: SessionData
   showOnScreenInfo: 1
+--- !u!114 &2058158936
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058158929}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4c7fc2b923ab0a4290b5fc21a771176, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
+  spawnPoint: {fileID: 660858706}
+  matchFacing: 1
+  maxWaitForTracking: 3
+--- !u!114 &2058158937
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058158929}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5012eb6b920262c4d932c84222f8ada4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
+  recordVideo: 1
+  useSessionRecorderFolder: 1
+  folderName: SessionData
+  width: 1280
+  height: 720
+  recordAudio: 1
+  matchHeadsetRefreshRate: 1
+  frameRate: 72
 --- !u!1 &2083346399
 GameObject:
   m_ObjectHideFlags: 0
@@ -4675,7 +4768,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2113368456}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e3cd49dc1a38aff4fa00676ddd64cf4e, type: 3}
   m_Name: 

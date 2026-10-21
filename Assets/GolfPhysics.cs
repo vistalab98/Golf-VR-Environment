@@ -22,7 +22,7 @@ public class GolfPhysics : MonoBehaviour
     }
     private void OnCollisionEnter(Collision collision)
     {
-        // Check if the solid club hit the golf ball
+        // Check if the club hit the golf ball
         if (collision.gameObject.CompareTag("Golf Ball"))
         {
             Rigidbody ballRb = collision.gameObject.GetComponent<Rigidbody>();
